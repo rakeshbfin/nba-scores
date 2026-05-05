@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NBA Live Scores</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0a0a0f;
+      color: #e8e8f0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border-bottom: 2px solid #c8102e;
+      padding: 1.2rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      background: linear-gradient(90deg, #fff 60%, #c8102e);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    #last-updated {
+      font-size: 0.78rem;
+      color: #888;
+    }
+
+    #refresh-btn {
+      background: #c8102e;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.45rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    #refresh-btn:hover { background: #a50d25; }
+    #refresh-btn:disabled { background: #555; cursor: default; }
+
+    .date-label {
+      text-align: center;
+      font-size: 0.9rem;
+      color: #aaa;
+      padding: 1rem 0 0.25rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 3rem;
+    }
+
+    #status-banner {
+      text-align: center;
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+      display: none;
+    }
+
+    #status-banner.error {
+      display: block;
+      background: #3a1020;
+      color: #ff6b6b;
+      border: 1px solid #c8102e;
+    }
+
+    #status-banner.loading {
+      display: block;
+      background: #1a2040;
+      color: #7090ff;
+      border: 1px solid #3050aa;
+    }
+
+    .games-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .game-card {
+      background: linear-gradient(145deg, #14142a, #1a1a30);
+      border: 1px solid #2a2a45;
+      border-radius: 14px;
+      padding: 1.25rem;
+      transition: transform 0.15s, border-color 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .game-card:hover {
+      transform: translateY(-2px);
+      border-color: #4a4a70;
+    }
+
+    .game-card.live {
+      border-color: #c8102e;
+      box-shadow: 0 0 18px rgba(200, 16, 46, 0.2);
+    }
+
+    .game-card.live::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, #c8102e, #ff4060, #c8102e);
+      background-size: 200% 100%;
+      animation: shimmer 2s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    .game-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #555;
+    }
+
+    .status-dot.live { background: #ff3355; animation: pulse 1.2s infinite; }
+    .status-dot.final { background: #888; }
+    .status-dot.upcoming { background: #4488ff; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.4); }
+    }
+
+    .status-text.live { color: #ff4466; }
+    .status-text.final { color: #888; }
+    .status-text.upcoming { color: #4488ff; }
+
+    .matchup {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .team {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .team-logo {
+      width: 52px;
+      height: 52px;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5));
+    }
+
+    .team-abbr {
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #ccc;
+    }
+
+    .team-name {
+      font-size: 0.7rem;
+      color: #666;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .team-score {
+      font-size: 2.4rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+
+    .team.winning .team-score { color: #ffffff; }
+    .team.losing .team-score { color: #666; }
+    .team.tied .team-score { color: #ccc; }
+
+    .vs-divider {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.3rem;
+      color: #444;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .series-info {
+      margin-top: 0.9rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid #2a2a45;
+      font-size: 0.72rem;
+      color: #666;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .quarter-scores {
+      margin-top: 0.75rem;
+      padding-top: 0.6rem;
+      border-top: 1px solid #2a2a45;
+    }
+
+    .q-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.72rem;
+    }
+
+    .q-table th {
+      color: #555;
+      font-weight: 600;
+      text-align: center;
+      padding: 0.15rem 0.25rem;
+    }
+
+    .q-table td {
+      text-align: center;
+      padding: 0.2rem 0.25rem;
+      color: #888;
+    }
+
+    .q-table .team-col { text-align: left; color: #aaa; font-weight: 600; }
+    .q-table .total-col { color: #ddd; font-weight: 700; }
+
+    .no-games {
+      text-align: center;
+      color: #555;
+      padding: 4rem 1rem;
+      font-size: 1.1rem;
+    }
+
+    .no-games .icon { font-size: 3rem; margin-bottom: 1rem; display: block; }
+
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid #3050aa;
+      border-top-color: #7090ff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 0.5rem;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 500px) {
+      h1 { font-size: 1.1rem; }
+      .team-score { font-size: 1.8rem; }
+      .team-logo { width: 38px; height: 38px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg class="logo-icon" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="18" cy="18" r="17" stroke="#c8102e" stroke-width="2"/>
+      <path d="M18 1C18 1 10 10 10 18C10 26 18 35 18 35" stroke="#c8102e" stroke-width="1.5"/>
+      <path d="M18 1C18 1 26 10 26 18C26 26 18 35 18 35" stroke="#c8102e" stroke-width="1.5"/>
+      <line x1="1" y1="18" x2="35" y2="18" stroke="#c8102e" stroke-width="1.5"/>
+    </svg>
+    <h1>NBA Live Scores</h1>
+  </div>
+  <div class="header-right">
+    <span id="last-updated"></span>
+    <button id="refresh-btn" onclick="loadScores()">↻ Refresh</button>
+  </div>
+</header>
+
+<main>
+  <div id="status-banner"></div>
+  <div id="date-label" class="date-label"></div>
+  <div id="games-container" class="games-grid"></div>
+</main>
+
+<script>
+  // ESPN public API — has CORS headers, no key needed
+  const ESPN_URL = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard';
+
+  function setStatus(msg, type) {
+    const el = document.getElementById('status-banner');
+    el.className = type;
+    el.innerHTML = msg;
+  }
+
+  function clearStatus() {
+    const el = document.getElementById('status-banner');
+    el.className = '';
+    el.innerHTML = '';
+  }
+
+  function formatTime(date) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function getGameStatus(event) {
+    const state = event.status.type.state; // pre | in | post
+    const desc = event.status.type.description;
+    const detail = event.status.type.detail;
+
+    if (state === 'post') return { label: desc, type: 'final' };
+    if (state === 'in') {
+      const period = event.status.period;
+      const clock = event.status.displayClock;
+      const pLabel = period > 4 ? `OT${period - 4}` : `Q${period}`;
+      return { label: `${pLabel} ${clock}`, type: 'live' };
+    }
+    // pre-game — show scheduled time
+    return { label: detail || desc, type: 'upcoming' };
+  }
+
+  function buildQuarterTable(away, home) {
+    const awayLines = away.linescores || [];
+    const homeLines = home.linescores || [];
+    const count = Math.max(awayLines.length, homeLines.length);
+    if (count === 0) return '';
+
+    const headers = Array.from({ length: count }, (_, i) =>
+      `<th>${i < 4 ? 'Q' + (i + 1) : 'OT' + (i - 3)}</th>`
+    ).join('');
+
+    const awayCells = Array.from({ length: count }, (_, i) =>
+      `<td>${awayLines[i] ? Math.round(awayLines[i].value) : '-'}</td>`
+    ).join('');
+
+    const homeCells = Array.from({ length: count }, (_, i) =>
+      `<td>${homeLines[i] ? Math.round(homeLines[i].value) : '-'}</td>`
+    ).join('');
+
+    return `
+      <div class="quarter-scores">
+        <table class="q-table">
+          <tr><th class="team-col"></th>${headers}<th class="total-col">T</th></tr>
+          <tr><td class="team-col">${away.team.abbreviation}</td>${awayCells}<td class="total-col">${away.score}</td></tr>
+          <tr><td class="team-col">${home.team.abbreviation}</td>${homeCells}<td class="total-col">${home.score}</td></tr>
+        </table>
+      </div>`;
+  }
+
+  function buildCard(event) {
+    const comp = event.competitions[0];
+    const competitors = comp.competitors;
+    const home = competitors.find(c => c.homeAway === 'home');
+    const away = competitors.find(c => c.homeAway === 'away');
+
+    const { label, type } = getGameStatus(event);
+    const isLive = type === 'live';
+    const isFinal = type === 'final';
+    const hasScore = isLive || isFinal;
+
+    const awayScore = parseInt(away.score || 0, 10);
+    const homeScore = parseInt(home.score || 0, 10);
+
+    let awayClass = 'tied', homeClass = 'tied';
+    if (hasScore && awayScore !== homeScore) {
+      awayClass = awayScore > homeScore ? 'winning' : 'losing';
+      homeClass = homeScore > awayScore ? 'winning' : 'losing';
+    }
+
+    const scoreOrDash = (score, cls) => hasScore
+      ? `<div class="team-score">${score}</div>`
+      : `<div class="team-score" style="font-size:1rem;color:#555">-</div>`;
+
+    const qTable = hasScore ? buildQuarterTable(away, home) : '';
+
+    const series = comp.series;
+    const seriesHtml = series
+      ? `<div class="series-info">${series.summary}</div>`
+      : '';
+
+    return `
+      <div class="game-card ${isLive ? 'live' : ''}">
+        <div class="game-status">
+          <span class="status-dot ${type}"></span>
+          <span class="status-text ${type}">${label}</span>
+        </div>
+        <div class="matchup">
+          <div class="team ${awayClass}">
+            <img class="team-logo" src="${away.team.logo}" alt="${away.team.abbreviation}" onerror="this.style.display='none'">
+            ${scoreOrDash(awayScore, awayClass)}
+            <div class="team-abbr">${away.team.abbreviation}</div>
+            <div class="team-name">${away.team.displayName}</div>
+          </div>
+          <div class="vs-divider"><span>@</span></div>
+          <div class="team ${homeClass}">
+            <img class="team-logo" src="${home.team.logo}" alt="${home.team.abbreviation}" onerror="this.style.display='none'">
+            ${scoreOrDash(homeScore, homeClass)}
+            <div class="team-abbr">${home.team.abbreviation}</div>
+            <div class="team-name">${home.team.displayName}</div>
+          </div>
+        </div>
+        ${seriesHtml}
+        ${qTable}
+      </div>`;
+  }
+
+  async function loadScores() {
+    const btn = document.getElementById('refresh-btn');
+    btn.disabled = true;
+    btn.textContent = '↻ Loading…';
+    setStatus('<span class="spinner"></span> Fetching today\'s scores…', 'loading');
+
+    try {
+      const res = await fetch(ESPN_URL, { cache: 'no-cache' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      const events = data.events || [];
+
+      // Date from first event or calendar
+      const dateStr = data.day?.date
+        ? new Date(data.day.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+        : new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      document.getElementById('date-label').textContent = dateStr;
+
+      const container = document.getElementById('games-container');
+
+      if (events.length === 0) {
+        container.innerHTML = `
+          <div class="no-games" style="grid-column:1/-1">
+            <span class="icon">🏀</span>
+            No games scheduled today. Check back tomorrow!
+          </div>`;
+      } else {
+        container.innerHTML = events.map(buildCard).join('');
+      }
+
+      clearStatus();
+      document.getElementById('last-updated').textContent = 'Updated ' + formatTime(new Date());
+
+      // Auto-refresh every 30s if any game is live
+      const hasLive = events.some(e => e.status.type.state === 'in');
+      if (hasLive) {
+        clearTimeout(window._autoRefresh);
+        window._autoRefresh = setTimeout(loadScores, 30000);
+      }
+
+    } catch (err) {
+      setStatus(`⚠️ Could not load scores: ${err.message}. <a href="#" onclick="loadScores();return false;" style="color:#ff9999">Try again</a>`, 'error');
+      console.error(err);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '↻ Refresh';
+    }
+  }
+
+  loadScores();
+</script>
+</body>
+</html>
